@@ -1,0 +1,11 @@
+services:
+  loop:
+    build: .
+    container_name: loop
+    ports:
+      - "8000:8000"
+    environment:
+      LOOP_MUSIC_DIR: /music
+    volumes:
+      - ./music:/music:ro
+    restart: unless-stopped
