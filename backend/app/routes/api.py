@@ -1,22 +1,28 @@
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status, UploadFile, File
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from ..database.session import get_db
-from ..models import Album, Artist, Like, ListeningHistory, Playlist, PlaylistSong, Song, User
+from ..models import Album, Artist, Like, ListeningHistory, PlaybackState, Playlist, PlaylistSong, Song, User
 from ..schemas import (
     AlbumUpdate,
+    ActivitySongRead,
     ArtistCreate,
     ArtistRead,
     ArtistUpdate,
+    FriendActivityRead,
     LikeCreate,
     LikeRead,
     LikeUpdate,
+    ListeningHistoryBase,
     ListeningHistoryCreate,
     ListeningHistoryRead,
     ListeningHistoryUpdate,
+    MonthlySummaryRead,
+    PlaybackStateRead,
+    PlaybackStateUpdate,
     PlaylistCreate,
     PlaylistRead,
     PlaylistSongCreate,
@@ -30,8 +36,11 @@ from ..schemas import (
     UserCreate,
     UserRead,
     UserUpdate,
+    LoginRequest,
+    LoginResponse,
 )
 from ..services import CRUDService, UserService
+from ..services.activity import get_friend_activity, get_monthly_summary, upsert_playback_state
 from ..services.library import sync_library
 
 
@@ -87,6 +96,46 @@ api_router.add_api_route(
 )
 
 
+import hashlib
+import shutil
+import os
+
+@api_router.post("/auth/login", response_model=LoginResponse, tags=["auth"])
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.name == payload.username).one_or_none()
+    if not user:
+        return LoginResponse(success=False)
+    
+    hashed_input = hashlib.sha256(payload.password.encode()).hexdigest()
+    if user.password_hash != hashed_input:
+        return LoginResponse(success=False)
+        
+    return LoginResponse(success=True, user=user)
+
+
+@api_router.post("/activity/presence", response_model=PlaybackStateRead, tags=["activity"])
+def update_presence(payload: PlaybackStateUpdate, db: Session = Depends(get_db)):
+    return upsert_playback_state(
+        db,
+        user_id=payload.user_id,
+        song_id=payload.song_id,
+        position_seconds=payload.position_seconds,
+        is_playing=payload.is_playing,
+        volume=payload.volume,
+        listened_seconds=payload.listened_seconds,
+    )
+
+
+@api_router.get("/activity/friend", response_model=FriendActivityRead, tags=["activity"])
+def friend_activity(user_id: int, db: Session = Depends(get_db)):
+    return get_friend_activity(db, user_id)
+
+
+@api_router.get("/stats/monthly", response_model=MonthlySummaryRead, tags=["stats"])
+def monthly_stats(user_id: int, year: int, month: int, db: Session = Depends(get_db)):
+    return get_monthly_summary(db, user_id, year, month)
+
+
 def _song_stream_url(song_id: int) -> str:
     return f"/api/songs/{song_id}/stream"
 
@@ -98,6 +147,8 @@ def _album_artwork_url(album_id: int) -> str:
 def serialize_song(song: Song) -> dict[str, object]:
     return {
         "id": song.id,
+        "artist_id": song.artist_id,
+        "album_id": song.album_id,
         "title": song.title,
         "artist_name": song.artist.name if song.artist else "Unknown Artist",
         "album_name": song.album.title if song.album else None,
@@ -147,6 +198,16 @@ def _serve_file_range(request: Request, file_path: Path, media_type: str):
         "Content-Length": str(length),
     }
     return StreamingResponse(iterator(), status_code=206, media_type=media_type, headers=headers)
+
+
+@api_router.post("/library/upload", response_model=LibrarySyncRead, tags=["library"])
+def upload_music(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    from ..services.library import MUSIC_DIR
+    MUSIC_DIR.mkdir(parents=True, exist_ok=True)
+    file_path = MUSIC_DIR / file.filename
+    with file_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return sync_library(db)
 
 
 @api_router.post("/library/rescan", response_model=LibrarySyncRead, tags=["library"])

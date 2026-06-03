@@ -98,6 +98,8 @@ class SongRead(ORMBaseModel, SongBase):
 
 class SongLibraryRead(ORMBaseModel):
     id: int
+    artist_id: int
+    album_id: int | None = None
     title: str
     artist_name: str
     album_name: str | None = None
@@ -116,6 +118,7 @@ class LibrarySyncRead(BaseModel):
 class ListeningHistoryBase(BaseModel):
     user_id: int
     song_id: int
+    listened_seconds: int = 0
     listened_at: datetime | None = None
 
 
@@ -126,11 +129,75 @@ class ListeningHistoryCreate(ListeningHistoryBase):
 class ListeningHistoryUpdate(BaseModel):
     user_id: int | None = None
     song_id: int | None = None
+    listened_seconds: int | None = None
     listened_at: datetime | None = None
 
 
 class ListeningHistoryRead(ORMBaseModel, ListeningHistoryBase):
     id: int
+
+
+class PlaybackStateUpdate(BaseModel):
+    user_id: int
+    song_id: int | None = None
+    position_seconds: int = 0
+    is_playing: bool = False
+    volume: int = 80
+    listened_seconds: int = 0
+
+
+class PlaybackStateRead(ORMBaseModel):
+    user_id: int
+    song_id: int | None = None
+    position_seconds: int
+    is_playing: bool
+    volume: int
+    updated_at: datetime
+
+
+class ActivitySongRead(ORMBaseModel):
+    id: int
+    title: str
+    artist_name: str
+    album_name: str | None = None
+    listened_seconds: int
+    listened_at: datetime
+    artwork_url: str | None = None
+    stream_url: str | None = None
+
+
+class FriendActivityRead(BaseModel):
+    friend_user_id: int
+    friend_name: str
+    current_song: ActivitySongRead | None = None
+    recent_songs: list[ActivitySongRead]
+    minutes_listened_24h: int
+
+
+class MonthlySongStatRead(BaseModel):
+    id: int
+    title: str
+    artist_name: str
+    album_name: str | None = None
+    minutes: int
+    artwork_url: str | None = None
+
+
+class MonthlyArtistStatRead(BaseModel):
+    artist_name: str
+    minutes: int
+
+
+class MonthlySummaryRead(BaseModel):
+    user_id: int
+    friend_user_id: int
+    month: int
+    year: int
+    minutes_listened: int
+    top_songs: list[MonthlySongStatRead]
+    top_artists: list[MonthlyArtistStatRead]
+    shared_favorites: int
+    listening_overlap_minutes: int
 
 
 class LikeBase(BaseModel):
@@ -190,3 +257,13 @@ class PlaylistSongUpdate(BaseModel):
 class PlaylistSongRead(ORMBaseModel, PlaylistSongBase):
     id: int
     added_at: datetime
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class LoginResponse(BaseModel):
+    success: bool
+    user: UserRead | None = None

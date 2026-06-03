@@ -2,6 +2,7 @@ from .album import Album
 from .artist import Artist
 from .like import Like
 from .listening_history import ListeningHistory
+from .playback_state import PlaybackState
 from .playlist import Playlist
 from .playlist_song import PlaylistSong
 from .song import Song

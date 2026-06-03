@@ -4,8 +4,9 @@ services:
     container_name: loop
     ports:
       - "8000:8000"
+      - "3000:3000"
     environment:
       LOOP_MUSIC_DIR: /music
     volumes:
-      - ./music:/music:ro
+      - ./music:/music
     restart: unless-stopped
