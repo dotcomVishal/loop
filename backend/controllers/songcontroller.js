@@ -16,7 +16,7 @@ const uploadsong = async (req, res) => {
         let artist = null;
 
         try {
-            // Using native Node fetch for OpenRouter (No SDK needed!)
+            
             const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: "POST",
                 headers: {
@@ -24,7 +24,7 @@ const uploadsong = async (req, res) => {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    // OpenRouter's specific tag for the Llama 3.3 70b model
+                    
                     model: "meta-llama/llama-3.3-70b-instruct", 
                     temperature: 0.1,
                     messages: [
@@ -42,7 +42,7 @@ const uploadsong = async (req, res) => {
 
             const data = await response.json();
 
-            // Catch any API-level errors (like invalid keys)
+            
             if (data.error) {
                 console.error("OpenRouter API Error:", data.error.message);
             } else {
