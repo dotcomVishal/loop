@@ -131,7 +131,6 @@ export default function App() {
     try { const res = await axios.post('/api/playlists', { name }, { headers: { Authorization: `Bearer ${token}` }}); await addToPlaylist(res.data.playlist.id, songId); fetchPlaylists(); } catch (e) { console.error(e) }
   }
 
-  // Playback & Queue Pipeline
   const startPlay = (list, index) => { 
     setPlaybackList(list); 
     setCurrentIndex(index); 
@@ -170,7 +169,7 @@ export default function App() {
   if (!token) return <div style={containerStyle}><Auth handleLogin={handleLogin} /></div>
 
   return (
-    <div style={containerStyle}>
+    <div className="app-wrapper" style={containerStyle}>
       <audio 
         ref={audioRef} 
         onEnded={playNext} 
@@ -178,96 +177,62 @@ export default function App() {
         onLoadedMetadata={handleLoadedMetadata} 
       />
 
-      <Sidebar 
-        isExpanded={isSidebarExpanded} 
-        setIsExpanded={setIsSidebarExpanded} 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        setSelectedArtist={setSelectedArtist} 
-        username={username} 
-        handleLogout={handleLogout} 
-      />
+      {/* DESKTOP SIDEBAR */}
+      <aside className="desktop-sidebar">
+        <Sidebar 
+          isExpanded={isSidebarExpanded} 
+          setIsExpanded={setIsSidebarExpanded} 
+          activeTab={activeTab} 
+          setActiveTab={setActiveTab} 
+          setSelectedArtist={setSelectedArtist} 
+          username={username} 
+          handleLogout={handleLogout} 
+        />
+      </aside>
 
-      <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-        <div style={{ flex: 1, padding: '32px', overflowY: 'auto', paddingBottom: currentSong ? '160px' : '32px' }}>
-          
+      {/* MAIN SCROLLABLE CONTENT */}
+      <main className="main-content">
+        <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
           {activeTab === 'home' && (
-            <Library 
-              songs={songs} 
-              searchHome={searchHome} 
-              setSearchHome={setSearchHome} 
-              startPlay={startPlay} 
-              currentSong={currentSong} 
-              isPlaying={isPlaying} 
-              openModal={setModalSong} 
-              deleteGlobalSong={deleteGlobalSong} 
-              username={username} 
-            />
+            <Library songs={songs} searchHome={searchHome} setSearchHome={setSearchHome} startPlay={startPlay} currentSong={currentSong} isPlaying={isPlaying} openModal={setModalSong} deleteGlobalSong={deleteGlobalSong} username={username} />
           )}
-          
           {activeTab === 'artists' && (
-            <Artists 
-              songs={songs} 
-              selectedArtist={selectedArtist} 
-              setSelectedArtist={setSelectedArtist} 
-              searchArtist={searchArtist} 
-              setSearchArtist={setSearchArtist} 
-              startPlay={startPlay} 
-              currentSong={currentSong} 
-              isPlaying={isPlaying} 
-            />
+            <Artists songs={songs} selectedArtist={selectedArtist} setSelectedArtist={setSelectedArtist} searchArtist={searchArtist} setSearchArtist={setSearchArtist} startPlay={startPlay} currentSong={currentSong} isPlaying={isPlaying} />
           )}
-          
           {activeTab === 'playlists' && (
-            <Playlists 
-              token={token} 
-              playlists={playlists} 
-              fetchPlaylists={fetchPlaylists} 
-              startPlay={startPlay} 
-              currentSong={currentSong} 
-              isPlaying={isPlaying} 
-            />
+            <Playlists token={token} playlists={playlists} fetchPlaylists={fetchPlaylists} startPlay={startPlay} currentSong={currentSong} isPlaying={isPlaying} />
           )}
-          
           {activeTab === 'about' && <About />}
-          
           {activeTab === 'upload' && username === 'rabbit' && <Upload handleUpload={handleUpload} />}
         </div>
+      </main>
 
-        <Player 
-          currentSong={currentSong} 
-          isPlaying={isPlaying} 
-          setIsPlaying={setIsPlaying} 
-          playNext={playNext} 
-          playPrev={playPrev} 
-          currentIndex={currentIndex} 
-          playbackList={playbackList} 
-          currentTime={currentTime} 
-          duration={duration} 
-          handleSeek={handleSeek} 
-          onOpenQueue={() => setIsQueueOpen(true)} 
-        />
-      </div>
+      {/* NEW MOBILE BOTTOM NAVIGATION */}
+      <nav className="mobile-nav">
+        <button className={activeTab === 'home' ? 'active' : ''} onClick={() => setActiveTab('home')}>Library</button>
+        <button className={activeTab === 'artists' ? 'active' : ''} onClick={() => setActiveTab('artists')}>Artists</button>
+        <button className={activeTab === 'playlists' ? 'active' : ''} onClick={() => setActiveTab('playlists')}>Playlists</button>
+        {username === 'rabbit' && (
+          <button className={activeTab === 'upload' ? 'active' : ''} onClick={() => setActiveTab('upload')}>Upload</button>
+        )}
+      </nav>
 
-      <ActionModal 
-        song={modalSong} 
-        playlists={playlists} 
-        onClose={() => setModalSong(null)} 
-        onAdd={addToPlaylist} 
-        onCreateAndAdd={createAndAddToPlaylist} 
-        onAddToQueue={handleAddToQueue} 
+      <Player 
+        currentSong={currentSong} 
+        isPlaying={isPlaying} 
+        setIsPlaying={setIsPlaying} 
+        playNext={playNext} 
+        playPrev={playPrev} 
+        currentIndex={currentIndex} 
+        playbackList={playbackList} 
+        currentTime={currentTime} 
+        duration={duration} 
+        handleSeek={handleSeek} 
+        onOpenQueue={() => setIsQueueOpen(true)} 
       />
-      
-      {isQueueOpen && (
-        <QueueModal 
-          playbackList={playbackList} 
-          setPlaybackList={setPlaybackList} 
-          currentIndex={currentIndex} 
-          setCurrentIndex={setCurrentIndex} 
-          onClose={() => setIsQueueOpen(false)} 
-          currentSong={currentSong} 
-        />
-      )}
+
+      <ActionModal song={modalSong} playlists={playlists} onClose={() => setModalSong(null)} onAdd={addToPlaylist} onCreateAndAdd={createAndAddToPlaylist} onAddToQueue={handleAddToQueue} />
+      {isQueueOpen && <QueueModal playbackList={playbackList} setPlaybackList={setPlaybackList} currentIndex={currentIndex} setCurrentIndex={setCurrentIndex} onClose={() => setIsQueueOpen(false)} currentSong={currentSong} />}
     </div>
   )
 }
