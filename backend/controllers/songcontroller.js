@@ -3,10 +3,6 @@ const pool = require('../db/config');
 const fs = require('fs');
 const path = require('path');
 const mm = require('music-metadata');
-const { Groq } = require('groq-sdk');
-
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-
 
 const uploadsong = async (req, res) => {
     try {
@@ -20,27 +16,43 @@ const uploadsong = async (req, res) => {
         let artist = null;
 
         try {
-            const chatCompletion = await groq.chat.completions.create({
-                messages: [
-                    {
-                        role: "system",
-                        content: "Analyze the provided filename and return ONLY a valid raw JSON object with keys 'title' and 'artist'. Strip file extensions, track numbers, 'official audio', quality tags, or brackets. Do not wrap code blocks in markdown or provide conversational explanations. Example output: {\"title\": \"Blinding Lights\", \"artist\": \"The Weeknd\"}"
-                    },
-                    {
-                        role: "user",
-                        content: file.originalname
-                    }
-                ],
-                model: "llama-3.3-70b-versatile",
-                temperature: 0.1
+            // Using native Node fetch for OpenRouter (No SDK needed!)
+            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    // OpenRouter's specific tag for the Llama 3.3 70b model
+                    model: "meta-llama/llama-3.3-70b-instruct", 
+                    temperature: 0.1,
+                    messages: [
+                        {
+                            role: "system",
+                            content: "Analyze the provided filename and return ONLY a valid raw JSON object with keys 'title' and 'artist'. Strip file extensions, track numbers, 'official audio', quality tags, or brackets. Do not wrap code blocks in markdown or provide conversational explanations. Example output: {\"title\": \"Blinding Lights\", \"artist\": \"The Weeknd\"}"
+                        },
+                        {
+                            role: "user",
+                            content: file.originalname
+                        }
+                    ]
+                })
             });
 
-            const aiResponse = JSON.parse(chatCompletion.choices[0].message.content.trim());
-            console.log(aiResponse);
-            title = aiResponse.title || null;
-            artist = aiResponse.artist || null;
-        } catch (groqError) {
-            console.error("Groq parsing failed, moving to metadata fallback:", groqError.message);
+            const data = await response.json();
+
+            // Catch any API-level errors (like invalid keys)
+            if (data.error) {
+                console.error("OpenRouter API Error:", data.error.message);
+            } else {
+                const aiResponse = JSON.parse(data.choices[0].message.content.trim());
+                console.log("AI Parsed Metadata:", aiResponse);
+                title = aiResponse.title || null;
+                artist = aiResponse.artist || null;
+            }
+        } catch (aiError) {
+            console.error("AI parsing failed, moving to metadata fallback:", aiError.message);
         }
 
         if (!title || !artist) {
@@ -75,11 +87,8 @@ const deletesong = async(req,res)=>{
     try { 
         const {id} = req.params;
 
-
         const findquery = 'SELECT file_path FROM songs WHERE id = $1';
         const findresult = await pool.query(findquery, [id]);
-
-        
 
         if (findresult.rows.length === 0){
             return res.status(400).json({ error : 'song not found'});
@@ -87,8 +96,6 @@ const deletesong = async(req,res)=>{
 
         const relativepath = findresult.rows[0].file_path;
         const absolutepath = path.join(__dirname,'..',relativepath);
-
-
 
         if (fs.existsSync(absolutepath)) {
             fs.unlinkSync(absolutepath);
@@ -101,11 +108,10 @@ const deletesong = async(req,res)=>{
         await pool.query(deletequery, [id]);
 
         return res.status(200).json({ mesage : 'deletion complete'});
+    } catch (error) {
+        console.error('delete error : ', error.message);
+        return res.status(500).json({error : 'internal server error while deletion'});
     }
- catch (error) {
-    console.error('delete error : ', error.message);
-    return res.status(500).json({error : 'internal server error while deletion'});
-}
 };
 
 const getallsongs = async (req, res) => {
@@ -117,7 +123,6 @@ const getallsongs = async (req, res) => {
             count: result.rowCount, 
             songs: result.rows      
         });
-
     } catch (error) {
         console.error("Fetch Error:", error.message);
         return res.status(500).json({ error: "Failed to fetch songs from database" });
