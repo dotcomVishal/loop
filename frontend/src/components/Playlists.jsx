@@ -13,7 +13,7 @@ export default function Playlists({ token, playlists, fetchPlaylists, startPlay,
 
   const loadPlaylistSongs = async (id) => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/playlists/${id}`, { headers: { Authorization: `Bearer ${token}` }})
+      const res = await axios.get(`/api/playlists/${id}`, { headers: { Authorization: `Bearer ${token}` }})
       setPlaylistSongs(res.data.songs)
     } catch (e) { console.error(e) }
   }
@@ -22,7 +22,7 @@ export default function Playlists({ token, playlists, fetchPlaylists, startPlay,
     e.preventDefault()
     if (!newPlaylistName) return
     try {
-      await axios.post('http://localhost:5000/api/playlists', { name: newPlaylistName }, { headers: { Authorization: `Bearer ${token}` }})
+      await axios.post('/api/playlists', { name: newPlaylistName }, { headers: { Authorization: `Bearer ${token}` }})
       setNewPlaylistName(''); fetchPlaylists()
     } catch (e) { console.error(e) }
   }
@@ -30,14 +30,14 @@ export default function Playlists({ token, playlists, fetchPlaylists, startPlay,
   const deletePlaylist = async (id) => {
     if(!confirm("Delete this playlist?")) return
     try {
-      await axios.delete(`http://localhost:5000/api/playlists/${id}`, { headers: { Authorization: `Bearer ${token}` }})
+      await axios.delete(`/api/playlists/${id}`, { headers: { Authorization: `Bearer ${token}` }})
       setSelectedPlaylist(null); fetchPlaylists()
     } catch (e) { console.error(e) }
   }
 
   const removeSong = async (songId) => {
     try {
-      await axios.delete(`http://localhost:5000/api/playlists/${selectedPlaylist.id}/songs/${songId}`, { headers: { Authorization: `Bearer ${token}` }})
+      await axios.delete(`/api/playlists/${selectedPlaylist.id}/songs/${songId}`, { headers: { Authorization: `Bearer ${token}` }})
       loadPlaylistSongs(selectedPlaylist.id)
     } catch (e) { console.error(e) }
   }
